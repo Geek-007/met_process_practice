@@ -1,0 +1,45 @@
+一、gdal使用
+（1）gdal_translate -sds data_01_2006.nc test.tiff 
+因为ERA再分析数据格式不是波段而是subdatasets。把subdatasets转为波段的，每个subdataset相当于一个变量，每个波段相当于一个时次。
+（2）gdallocationinfo test.tiff64 -geoloc 120 40  
+查看具体经纬度上的某变量（如data_01_2006.nc中第64个变量：test.tiff64）的值，数据有可能很奇怪，数值不符合常理。
+（3）用gdalinfo 查看test.tiff64，会看到类似如下的文本：
+（。。。。此处省略很多Band
+Band 124 Block=108x1 Type=Int16, ColorInterp=Undefined
+  NoData Value=-32767
+  Metadata:
+    add_offset=247.5243081257613
+    long_name=Temperature of snow layer
+    missing_value=-32767
+    NETCDF_DIM_time=929922
+    NETCDF_VARNAME=tsn
+    scale_factor=0.001951375430454647
+    standard_name=temperature_in_surface_snow
+    units=K                                              ）
+其中add_offset和scale_factor是两个参数。真实变量值=gdallocationinfo出来的值*scale_factor+add_offset（*和+视情况而定）。
+原因是因为nc格式有自己的压缩格式，当用可以处理nc格式的软件（想查找这些软件请百度 netcdf software）时，可以正常显示变量的值，
+当用gdal转成.tiff格式时，压缩方式不一样，gdal的压缩方式就是把浮点型数据转成整形，占用更少的字节，为此只能让让原浮点型数据乘
+或除一个scale_factor再加或减一个add_offset,变成整形。
+*******问题:但是当我用cdo的mergetime以及selname把时间都连起来并提取除相关变量后再用gdal_translate输出的变量就不存在add_offset和scale_factor了
+
+
+
+二、提取gdal输出结果
+（1）gdallocationinfo test.tiff64 -geoloc 120 40 >test_result.csv
+将gdal输出结果重定向
+（2）grep -n Value test_r* | awk '{print $3}' > hur_sta.csv
+用grep和awk把某一站的hur结果重定向
+
+
+
+
+三、cdo相关命令
+（1）cdo -b 32 -mergetime  data_03_2006.nc data_04_2006.nc out.nc
+用mergetime会报错
+cdf_put_vara_double : ncid = 196608 varid = 35 val0 = -2953.000000
+cdf_put_vara_double : varname = p73.162
+
+Error (cdf_put_vara_double) : NetCDF: Numeric conversion not representable
+解决方法：    https://code.zmaw.de/boards/1/topics/165
+（2）cdo selname, t2m data_alltime.nc data_t2m_alltime.nc
+提取相关变量

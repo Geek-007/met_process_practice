@@ -1,0 +1,56 @@
+c1）单个文件/时间处理命令
+
+wgrib2 apcp.cdas1.201609.grb2 -set_grib_type c2 -small_grib 109:110 35:37 apcp.cdas1.201609.region.grb2   ##用wgrib2提取grb2具体区域数据
+wgrib2  tmp2m.cdas1.201609.region.grb2 -netcdf tmp2m_201609.nc
+wgrib2  apcp.cdas1.201609.region.grb2  -d 1 -netcdf 201609.nc      ##把grb2数据转成nc数据，-d提取具体时间的数据 
+wgrib2  wnd10m.cdas1.201609.region.grb2 -d 1 -netcdf u_201609.nc
+wgrib2  wnd10m.cdas1.201609.region.grb2 -d 2 -netcdf v_201609.nc
+cdo mergetime tmp2m*nc  tmp2m.nc                              ## mergetime 后面的输入文件可以用通配符*
+cdo shifttime,+8hours tmp2m.nc tmp2m_BTC.nc                   ##时间平移，BTC（北京时）跟UTC（世界时）差8h
+cdo daymean tmp2m.nc
+cdo addc,-273.15 tmp2m.nc tmp2m_Celsius.nc                    ##addc 命令是求积温的函数
+gdallocationinfo dailymean_test_tmp.nc -geoloc 110 30 > DailyMean_tmp2m_110_30.csv      ##gdallocationinfo命令提取具体经纬度的数值信息
+
+sed -i ***** (www.baidu.com)
+
+
+2）批量处理
+
+    见py文件
+
+     需要注意的：100机器如果长时间无操作会自动断连接，所以需要用screen后台运行，
+
+     这样的话终端挂了属于前台挂了，后台能自动运行
+
+     建立screen窗口：    screen -S screen-test-name；
+
+     回车后进入名为screen-test-name的窗口后正常linux操作；
+
+    退出screen窗口回到正常前台操作：Ctrl+a+d；
+
+    查看有哪些screen窗口运行：screen -ls
+
+            3180.screen-test-name (01/04/2017 01:34:39 PM)	(Detached)
+
+             其中3180为窗口号；
+
+    进入screen窗口继续操作：screen -r 3180
+
+     关闭screen窗口： kill 3180
+
+
+
+3）补充 日平均风速计算:
+
+a  u、v 在同一个文件
+
+      单文件处理
+
+cdo expr,'wnd_spd=sqrt(UGRD_10maboveground*UGRD_10maboveground+VGRD_10maboveground*VGRD_10maboveground)' wnd10m.cdas1.201609.region.nc wnd_spd10m.cdas1.201609.region.nc
+       批量处理
+
+        *.py 中wnd_spd相关函数 
+
+b   u、v在不同文件
+
+cdo chname,uwnd,ws -sqrt -add -sqr -selname,uwnd ifile1 -sqr -selname,vwnd ifile2 ofile
